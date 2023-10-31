@@ -1,4 +1,4 @@
 from app import app, db, models, routes
 
 if __name__ == 'main':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
