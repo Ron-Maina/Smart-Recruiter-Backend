@@ -27,7 +27,7 @@ class Recruiters(db.Model, SerializerMixin):
     username = db.Column(db.String, nullable=False)
     phoneNumber = db.Column(db.String, unique=True, nullable=False)
     email = db.Column(db.String, unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    # created_at = db.Column(db.DateTime, server_default=db.func.now())
     _password_hash = db.Column(db.String, nullable = False)
 
     # many to many relationship
@@ -66,7 +66,7 @@ class Interviewees(db.Model, SerializerMixin):
     username = db.Column(db.String, nullable = False)
     email = db.Column(db.String, nullable = False)
     phoneNumber = db.Column(db.String)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    # created_at = db.Column(db.DateTime, server_default=db.func.now())
     _password_hash = db.Column(db.String, nullable = False)
    
 
@@ -106,7 +106,7 @@ class Assessments(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    when = db.Column(db.DateTime)
+    # when = db.Column(db.DateTime)
     duration = db.Column(db.Integer, nullable=True) 
     link = db.Column(db.String)
 
@@ -123,11 +123,22 @@ class Questions(db.Model):
     question_text = db.Column(db.String, nullable=False)
     solution = db.Column(db.String, nullable=False)
     question_type = db.Column(db.String, nullable=False) 
-    answer_text = db.Column(db.String, nullable=False)
-    grade = db.Column(db.Integer)
-    feedback_text = db.Column(db.String(500), nullable=False)
 
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), nullable=False)
+
+    answers = db.relationship('Answers', backref='question')
+
+class Answers(db.Model):
+    __tablename__ = 'answers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    answer_text = db.Column(db.String)
+    grade = db.Column(db.Integer)
+    feedback = db.Column(db.String)
+
+    interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'), nullable = False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable = False)
+
 
 class WhiteboardSubmissions(db.Model):
     __tablename__ = "whiteboard"
