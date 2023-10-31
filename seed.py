@@ -1,4 +1,4 @@
-from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers
+from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers, WhiteboardSubmissions
 from faker import Faker
 from app import app, db
 import random
@@ -14,6 +14,7 @@ with app.app_context():
     Questions.query.delete()
     Answers.query.delete()
     IntervieweeAssessment.query.delete()
+    WhiteboardSubmissions.query.delete()
 
     interviewees_list = []
     for i in range(2):
@@ -81,7 +82,6 @@ with app.app_context():
             question_text = fake.sentence(),
             solution = 'solution',
             question_type = random.choice(type),
-            grade = random.randint(1, 10),
             assessment_id = random.randint(1, 3)
         )
         questions_list.append(question)
@@ -95,10 +95,29 @@ with app.app_context():
             question_id = random.randint(1,3),
             interviewee_id = random.randint(1,2),
             answer_text = fake.sentence(),
+            grade = random.randint(1,10),
             feedback = fake.sentence(),
+            
         )
         answers_list.append(answer)
     db.session.add_all(answers_list)
     db.session.commit()
     print('SEEDED ANSWERS...')
+
+
+    whiteboard_list = []
+    for i in range(5):
+        submission = WhiteboardSubmissions(
+            question_id = random.randint(1,3),
+            interviewee_id = random.randint(1,2),
+            pseudocode = fake.sentence(),
+            grade = random.randint(1,10),
+            feedback = fake.sentence(),
+            code = fake.sentence(),
+            bdd = fake.sentence()
+        )
+        whiteboard_list.append(submission)
+    db.session.add_all(whiteboard_list)
+    db.session.commit()
+    print('SEEDED SUBMISSIONS...')
 

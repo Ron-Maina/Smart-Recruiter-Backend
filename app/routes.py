@@ -3,7 +3,7 @@ from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
 
 from app import app, db, api
-from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers
+from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers, WhiteboardSubmissions
 
 app.config['SESSION_TYPE'] = 'filesystem'
 
@@ -137,21 +137,40 @@ class IntervieweeLogout(Resource):
         session['interviewee'] = None
         return {}, 204
     
-class IntervieweeAssessments(Resource):
+class IntervieweePendingAssessments(Resource):
     def get(self):
-        assessment_list = []
-        interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
+        pending_list = []
+        interviewee = Interviewees.query.filter(Interviewees.id == 1).first() 
         if interviewee:
             assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.status == 'pending').all()
             for assessment in assessments_done_by_interviewee:
-                assessment_dict = {
+                pending_dict = {
                     "id": assessment.id,
                     "title": assessment.title,
                 }
-                assessment_list.append(assessment_dict)
+                pending_list.append(pending_dict)
 
             result = make_response(
-                jsonify(assessment_list),
+                jsonify(pending_list),
+                200
+            )
+            return result
+        
+class IntervieweeReviewedAssessments(Resource):
+    def get(self):
+        reviewed_list = []
+        interviewee = Interviewees.query.filter(Interviewees.id == 1).first() 
+        if interviewee:
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.status == 'done').all()
+            for assessment in assessments_done_by_interviewee:
+                reviewed_dict = {
+                    "id": assessment.id,
+                    "title": assessment.title,
+                }
+                reviewed_list.append(reviewed_dict)
+
+            result = make_response(
+                jsonify(reviewed_list),
                 200
             )
             return result
@@ -198,7 +217,25 @@ class IntervieweeFeedback(Resource):
             200
         )
         return result
-        
+    
+class KataFeedback(Resource):
+    def get(self, id):
+        kata_list = []
+        katas = db.session.query(WhiteboardSubmissions).join(Questions).filter(Questions.assessment_id == id, Questions.question_type == 'kata', WhiteboardSubmissions.interviewee_id == session.get('interviewee')).all()
+        for kata in katas:
+            answer_dict = {
+                "pseudocode": kata.pseudocode,
+                "code": kata.code,
+                "grade": kata.grade,
+                "feedback": kata.feedback
+            }
+            kata_list.append(answer_dict)
+
+        result = make_response (
+            jsonify(kata_list),
+            200
+        )
+        return result        
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
 api.add_resource(RecruiterLogin, '/recruiterlogin')
@@ -210,9 +247,12 @@ api.add_resource(IntervieweeLogin, '/intervieweelogin')
 api.add_resource(IntervieweeLogout, '/intervieweelogout')
 api.add_resource(IntervieweeSession, '/intervieweesession')
 
-api.add_resource(IntervieweeAssessments, '/intassessments')
+api.add_resource(IntervieweePendingAssessments, '/pendingassessments')
+api.add_resource(IntervieweeReviewedAssessments, '/reviewedassessments')
 api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
+api.add_resource(KataFeedback, '/whiteboard/<int:id>')
+
 
 
 

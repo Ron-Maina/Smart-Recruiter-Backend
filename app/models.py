@@ -113,7 +113,6 @@ class Assessments(db.Model):
     recruiter_id = db.Column(db.Integer, db.ForeignKey('recruiters.id'), nullable=False)
 
     questions = db.relationship('Questions', backref='assessment')
-    whiteboard = db.relationship('WhiteboardSubmissions', backref='assessment')
     interviewees = db.relationship('Interviewees', secondary='interviewee_assessment', back_populates='assessments')
 
 class Questions(db.Model):
@@ -127,6 +126,8 @@ class Questions(db.Model):
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), nullable=False)
 
     answers = db.relationship('Answers', backref='question')
+    whiteboard = db.relationship('WhiteboardSubmissions', backref='question')
+
 
 class Answers(db.Model):
     __tablename__ = 'answers'
@@ -144,10 +145,12 @@ class WhiteboardSubmissions(db.Model):
     __tablename__ = "whiteboard"
 
     id = db.Column(db.Integer, primary_key=True)
-    bdd_text = db.Column(db.String(500), nullable=False)
-    pseudocode_text = db.Column(db.String(500), nullable=False)
-    code_text = db.Column(db.String(500), nullable=False)
+    bdd = db.Column(db.String(500), nullable=False)
+    pseudocode = db.Column(db.String(500), nullable=False)
+    code = db.Column(db.String(500), nullable=False)
+    grade = db.Column(db.Integer)
+    feedback = db.Column(db.String)
 
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'))
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'))
     interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'))
 
