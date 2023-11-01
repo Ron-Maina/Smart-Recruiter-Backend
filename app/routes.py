@@ -1,4 +1,5 @@
 from flask import make_response, jsonify, request, session, render_template
+from sqlalchemy import desc
 from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
 
@@ -235,12 +236,39 @@ class KataFeedback(Resource):
             jsonify(kata_list),
             200
         )
-        return result        
+        return result  
+
+class RecruiterAssessments(Resource):
+    def get(self):
+        assessments_list = []
+        assessments = Assessments.query.filter(Assessments.recruiter_id == 2).all()
+        for assessment in assessments:
+            assessment_dict = {
+                "id": assessment.id,
+                "title": assessment.title,
+                "link": assessment.link
+            }
+            assessments_list.append(assessment_dict)
+
+        result = make_response(
+            jsonify(assessments_list),
+            200
+        )
+        return result
+    
+
+    
+
+
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
 api.add_resource(RecruiterLogin, '/recruiterlogin')
 api.add_resource(RecruiterLogout, '/recruiterlogout')
 api.add_resource(RecruiterSession, '/recruitersession')
+
+api.add_resource(RecruiterAssessments, '/recruiterassessments')
+
+
 
 api.add_resource(IntervieweeSignUp, '/intervieweesignup')
 api.add_resource(IntervieweeLogin, '/intervieweelogin')
@@ -252,6 +280,10 @@ api.add_resource(IntervieweeReviewedAssessments, '/reviewedassessments')
 api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
+
+
+
+
 
 
 
