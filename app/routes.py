@@ -256,7 +256,24 @@ class RecruiterAssessments(Resource):
         )
         return result
     
+class RecruiterInterviewees(Resource):
+    def get(self):
+        interviewees_list = []
+        recruiter = Recruiters.query.filter(Recruiters.id == 2).first()
+        int_recruiter = recruiter.interviewees
+        for interviewee in int_recruiter:
+            interviewee_dict = {
+                "username": interviewee.username,
+                "email": interviewee.email,
+                "id": interviewee.id
+            }
+            interviewees_list.append(interviewee_dict)
 
+        result = make_response(
+            jsonify(interviewees_list),
+            200
+        )
+        return result
     
 
 
@@ -267,7 +284,7 @@ api.add_resource(RecruiterLogout, '/recruiterlogout')
 api.add_resource(RecruiterSession, '/recruitersession')
 
 api.add_resource(RecruiterAssessments, '/recruiterassessments')
-
+api.add_resource(RecruiterInterviewees, '/recruiterinterviewees')
 
 
 api.add_resource(IntervieweeSignUp, '/intervieweesignup')
