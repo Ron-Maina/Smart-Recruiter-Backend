@@ -275,7 +275,28 @@ class RecruiterInterviewees(Resource):
         )
         return result
     
+class SortIntervieweesByScore(Resource):
+    def get(self, id):
+        interviewee_score = []
+        interviewees_with_scores = db.session.query(Interviewees, IntervieweeAssessment.score).\
+        join(IntervieweeAssessment).\
+        filter(IntervieweeAssessment.assessment_id == id).\
+        order_by(desc(IntervieweeAssessment.score)).all()
 
+        for interviewee, score in interviewees_with_scores:
+            interviewee_dict = {
+                "id": interviewee.id,
+                "username": interviewee.username,
+                "email": interviewee.email,
+                "score": score
+            }
+            interviewee_score.append(interviewee_dict)
+
+        result = make_response(
+        jsonify(interviewee_score),
+        200
+        )
+        return result
 
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
@@ -298,7 +319,7 @@ api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
 
-
+api.add_resource(SortIntervieweesByScore, '/assessment/<int:id>')
 
 
 
