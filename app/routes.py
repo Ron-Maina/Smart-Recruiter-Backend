@@ -326,13 +326,14 @@ class PendingReviews(Resource):
         return result
 
 # Displays the question and answers for each question 
-# for a particular interviewee for a particular interviewee    
+# for a particular interviewee for a particular assessment    
 class McqFreeTextAnswers(Resource):
     def get(self, assessment_id, interviewee_id):
         answer_list = []
-        questions = Questions.query.filter(Questions.assessment_id == assessment_id).all()
+        questions = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type != 'kata').all()
 
         for question in questions:
+            print(question.question_type)
             for answer in (question.answers):
                 if answer.interviewee_id == interviewee_id and question.id == answer.question_id:
                     response_dict = {
@@ -348,6 +349,29 @@ class McqFreeTextAnswers(Resource):
         )
         return result
 
+# Displays the kata question and solution for a particular interviewee
+# for a particular assessment
+class KataAnswers(Resource):
+    def get(self, assessment_id, interviewee_id):
+        kata_answer_list = []
+        kata = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type == 'kata').first()
+        
+        for answer in (kata.whiteboard):
+            if answer.interviewee_id == interviewee_id:
+                response_dict = {
+                    "question": kata.question_text,
+                    "pseudocode": answer.pseudocode,
+                    "bdd": answer.bdd,
+                    "code": answer.code,
+                    "grade": answer.grade
+                }
+                kata_answer_list.append(response_dict)
+
+        result = make_response(
+            jsonify(kata_answer_list),
+            200
+        )
+        return result
 
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
@@ -369,7 +393,10 @@ api.add_resource(IntervieweeReviewedAssessments, '/reviewedassessments')
 api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
-api.add_resource(McqFreeTextAnswers, '/intervieweesanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(McqFreeTextAnswers, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(KataAnswers, '/katanswers/<int:assessment_id>/<int:interviewee_id>')
+
+
 
 api.add_resource(SortIntervieweesByScore, '/assessment/<int:id>')
 
