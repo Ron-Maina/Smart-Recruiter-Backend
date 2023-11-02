@@ -9,7 +9,8 @@ class IntervieweeAssessment(db.Model):
 
     interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'), primary_key=True)
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), primary_key = True)
-    status = db.Column(db.String, nullable=False) 
+    status = db.Column(db.String) 
+    score = db.Column(db.String) 
 
 class IntervieweeRecruiter(db.Model):
     __tablename__ = 'interviewee_recruiter'

@@ -1,4 +1,4 @@
-from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers, WhiteboardSubmissions
+from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers, WhiteboardSubmissions, IntervieweeRecruiter
 from faker import Faker
 from app import app, db
 import random
@@ -15,9 +15,10 @@ with app.app_context():
     Answers.query.delete()
     IntervieweeAssessment.query.delete()
     WhiteboardSubmissions.query.delete()
+    IntervieweeRecruiter.query.delete()
 
     interviewees_list = []
-    for i in range(2):
+    for i in range(10):
         interviewee = Interviewees(
             username = fake.name(),
             phoneNumber = fake.phone_number(),
@@ -45,7 +46,7 @@ with app.app_context():
     print('SEEDED RECRUITERS...')
 
     assessment_list = []
-    for i in range(3):
+    for i in range(5):
         assessment = Assessments(
             title = fake.sentence(nb_words=5),
             # when = fake.date(),
@@ -56,7 +57,7 @@ with app.app_context():
         assessment_list.append(assessment)
     db.session.add_all(assessment_list)
     db.session.commit()
-    print('SEEDED Assessment...')
+    print('SEEDED ASSESSMENTS...')
 
     lists = []
     status = ['pending', 'done']
@@ -65,7 +66,8 @@ with app.app_context():
             data = IntervieweeAssessment(
                 interviewee_id = interviewee.id, 
                 assessment_id = i,
-                status = random.choice(status)
+                status = random.choice(status),
+                score = random.randint(1, 10)
             )
             lists.append(data)
 
@@ -73,7 +75,22 @@ with app.app_context():
             db.session.add_all(lists)
             db.session.commit()
 
-    print("SEEDED JOIN TABLE....")
+    print("SEEDED INTASS JOIN TABLE....")
+
+    recint = []
+    for interviewee in Interviewees.query.all():
+        for i in range(1,random.randint(2,4)):
+            data = IntervieweeRecruiter(
+                interviewee_id = interviewee.id, 
+                recruiter_id = i,
+            )
+            recint.append(data)
+
+
+            db.session.add_all(recint)
+            db.session.commit()
+
+    print("SEEDED INTREC JOIN TABLE....")
 
     questions_list = []
     type = ['mcq', 'ft', 'kata']
