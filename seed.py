@@ -60,13 +60,14 @@ with app.app_context():
     print('SEEDED ASSESSMENTS...')
 
     lists = []
-    status = ['pending', 'done']
+    status = ['pending', 'reviewed']
     for interviewee in Interviewees.query.all():
         for i in range(1, 4):
             data = IntervieweeAssessment(
                 interviewee_id = interviewee.id, 
                 assessment_id = i,
-                status = random.choice(status),
+                recruiter_status = random.choice(status),
+                interviewee_status = random.choice(status),
                 score = random.randint(1, 10)
             )
             lists.append(data)
