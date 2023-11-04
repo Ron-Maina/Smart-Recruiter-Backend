@@ -9,7 +9,8 @@ class IntervieweeAssessment(db.Model):
 
     interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'), primary_key=True)
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), primary_key = True)
-    status = db.Column(db.String) 
+    recruiter_status = db.Column(db.String) 
+    interviewee_status = db.Column(db.String) 
     score = db.Column(db.String) 
 
 class IntervieweeRecruiter(db.Model):
@@ -28,8 +29,11 @@ class Recruiters(db.Model, SerializerMixin):
     username = db.Column(db.String, nullable=False)
     phoneNumber = db.Column(db.String, unique=True, nullable=False)
     email = db.Column(db.String, unique=True, nullable=False)
+    role = db.Column(db.String)
     # created_at = db.Column(db.DateTime, server_default=db.func.now())
     _password_hash = db.Column(db.String, nullable = False)
+    role = db.Column(db.String)
+
 
     # many to many relationship
     interviewees = db.relationship('Interviewees', secondary='interviewee_recruiter', back_populates='recruiters')
@@ -69,6 +73,8 @@ class Interviewees(db.Model, SerializerMixin):
     phoneNumber = db.Column(db.String)
     # created_at = db.Column(db.DateTime, server_default=db.func.now())
     _password_hash = db.Column(db.String, nullable = False)
+    role = db.Column(db.String)
+
    
 
     # # one to many
@@ -107,7 +113,7 @@ class Assessments(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    # when = db.Column(db.DateTime)
+    # time = db.Column(db.DateTime)
     duration = db.Column(db.Integer, nullable=True) 
     link = db.Column(db.String)
 

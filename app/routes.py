@@ -3,7 +3,7 @@ from sqlalchemy import desc
 from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
 
-from app import app, db, api
+from app import app, db, api, run_test_cases
 from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers, WhiteboardSubmissions
 
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -16,7 +16,21 @@ load_dotenv()
 def index(id=0):
     return render_template("index.html")
    
+@app.route('/run-test', methods=['POST'])
+def execute_test():
+    data = request.get_json()
+    code = data['code']
+    test_cases = data['test_cases']
 
+    is_test_passed, user_code_output = run_test_cases(code, test_cases)
+
+    response = {
+        'is_test_passed': is_test_passed,
+        'user_code_output': user_code_output,
+    }
+
+    return jsonify(response)
+    
 class RecruiterSignUp(Resource):
     def post(self):
         try:
@@ -25,6 +39,7 @@ class RecruiterSignUp(Resource):
                 username = data.get('username'),
                 email = data.get('email'),
                 phoneNumber = data.get('number'),
+                role = 'recruiter'
             )
             new_recruiter.password_hash = data.get('password')
 
@@ -37,7 +52,7 @@ class RecruiterSignUp(Resource):
                 "id": new_recruiter.id,
                 "username": new_recruiter.username,
                 "email": new_recruiter.email,
-
+                "role": new_recruiter.role
             }
 
             result = make_response(
@@ -87,6 +102,7 @@ class IntervieweeSignUp(Resource):
                 username = data.get('username'),
                 email = data.get('email'),
                 phoneNumber = data.get('number'),
+                role = 'interviewee'
             )
             new_interviewee.password_hash = data.get('password')
 
@@ -99,6 +115,7 @@ class IntervieweeSignUp(Resource):
                 "id": new_interviewee.id,
                 "username": new_interviewee.username,
                 "email": new_interviewee.email,
+                "role": new_interviewee.role
             }
 
             result = make_response(
@@ -138,17 +155,21 @@ class IntervieweeLogout(Resource):
         session['interviewee'] = None
         return {}, 204
 
-# interviewee side    
+# interviewee side 
+# Assessment Not Done   
 class IntervieweePendingAssessments(Resource):
     def get(self):
         pending_list = []
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
         if interviewee:
-            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.status == 'pending').all()
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.interviewee_status == 'pending').all()
             for assessment in assessments_done_by_interviewee:
                 pending_dict = {
                     "id": assessment.id,
                     "title": assessment.title,
+                    "link": assessment.link,
+                    # "time": assessment.time,
+                    "duration": assessment.duration
                 }
                 pending_list.append(pending_dict)
 
@@ -158,15 +179,36 @@ class IntervieweePendingAssessments(Resource):
             )
             return result
         
-class IntervieweeReviewedAssessments(Resource):
+# Assessment Done and Reviewed       
+class DoneAndReviewedAssessments(Resource):
     def get(self):
         reviewed_list = []
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
         if interviewee:
-            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.status == 'done').all()
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.recruiter_status == 'reviewed',IntervieweeAssessment.interviewee_status == 'reviewed').all()
             for assessment in assessments_done_by_interviewee:
                 reviewed_dict = {
-                    "id": assessment.id,
+                     "id": assessment.id,
+                    "title": assessment.title,
+                }
+                reviewed_list.append(reviewed_dict)
+
+            result = make_response(
+                jsonify(reviewed_list),
+                200
+            )
+            return result
+        
+# Assessment Done and Not Reviewed       
+class DoneNotReviewedAssessments(Resource):
+    def get(self):
+        reviewed_list = []
+        interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
+        if interviewee:
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.recruiter_status == 'pending',IntervieweeAssessment.interviewee_status == 'reviewed').all()
+            for assessment in assessments_done_by_interviewee:
+                reviewed_dict = {
+                     "id": assessment.id,
                     "title": assessment.title,
                 }
                 reviewed_list.append(reviewed_dict)
@@ -208,6 +250,7 @@ class IntervieweeFeedback(Resource):
         answers = db.session.query(Answers).join(Questions).filter(Questions.assessment_id == id, Answers.interviewee_id == session.get('interviewee')).all()
         for answer in answers:
             answer_dict = {
+                "id": answer.id,
                 "answer_text": answer.answer_text,
                 "grade": answer.grade,
                 "feedback": answer.feedback
@@ -275,18 +318,21 @@ class RecruiterInterviewees(Resource):
             200
         )
         return result
-    
-class SortIntervieweesByScore(Resource):
+
+# Recruiter side
+# Interviewees with pending status for a particular assessment sorted by score    
+class PendingIntervieweesByScore(Resource):
     def get(self, id):
         interviewee_score = []
         interviewees_with_scores = db.session.query(Interviewees, IntervieweeAssessment.score).\
         join(IntervieweeAssessment).\
-        filter(IntervieweeAssessment.assessment_id == session.get('recruiter')).\
+        filter(IntervieweeAssessment.assessment_id == id, IntervieweeAssessment.recruiter_status == "pending").\
         order_by(desc(IntervieweeAssessment.score)).all()
 
         for interviewee, score in interviewees_with_scores:
             interviewee_dict = {
                 "id": interviewee.id,
+                "assessment_id": id,
                 "username": interviewee.username,
                 "email": interviewee.email,
                 "score": score
@@ -300,31 +346,33 @@ class SortIntervieweesByScore(Resource):
         return result
 
 # Recruiter side
-# Interviewees with pending status for a particular assessment   
-class PendingReviews(Resource):
+# Interviewees with pending status for a particular assessment sorted by score    
+class ReviewedIntervieweesByScore(Resource):
     def get(self, id):
-        interviewees_with_pending_list = []
-        interviewees_with_pending_status = db.session.query(Interviewees).\
-        join(IntervieweeAssessment, Interviewees.id == IntervieweeAssessment.interviewee_id).\
-        filter(IntervieweeAssessment.assessment_id == id, IntervieweeAssessment.status == "pending").\
-        all()
+        interviewee_score = []
+        interviewees_with_scores = db.session.query(Interviewees, IntervieweeAssessment.score).\
+        join(IntervieweeAssessment).\
+        filter(IntervieweeAssessment.assessment_id == id, IntervieweeAssessment.recruiter_status == "reviewed").\
+        order_by(desc(IntervieweeAssessment.score)).all()
 
-        for interviewee in interviewees_with_pending_status:
+        for interviewee, score in interviewees_with_scores:
             interviewee_dict = {
-                "interviewee_id": interviewee.id,
+                "id": interviewee.id,
                 "assessment_id": id,
                 "username": interviewee.username,
-                "email": interviewee.email
+                "email": interviewee.email,
+                "score": score
             }
-            
-            interviewees_with_pending_list.append(interviewee_dict)
+            interviewee_score.append(interviewee_dict)
 
         result = make_response(
-            jsonify(interviewees_with_pending_list),
-            200
+        jsonify(interviewee_score),
+        200
         )
         return result
 
+
+    
 # Displays the question and answers for each question 
 # for a particular interviewee for a particular assessment    
 class McqFreeTextAnswers(Resource):
@@ -372,6 +420,39 @@ class KataAnswers(Resource):
             200
         )
         return result
+    
+class CreateAssessment(Resource):
+    def post(self):
+        data = request.get_json()
+        try:
+            assessment = Assessments(
+                title = data.get('title'),
+                link = data.get('link'),
+                duration = data.get('duration'),
+                recruiter_id = data.get('recruiter_id')   
+            )
+            db.session.add(assessment)
+            db.session.commit()
+
+            response_dict = {
+                "id": assessment.id,
+                "title": assessment.title,
+                "link": assessment.link
+            }
+
+            result = make_response(
+                jsonify(response_dict)
+            )
+
+            return result
+        
+        except Exception as e:
+            db.session.rollback()  
+            response = make_response(
+                jsonify({"error": str(e)}),
+                500
+            )
+        
 
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
@@ -381,7 +462,6 @@ api.add_resource(RecruiterSession, '/recruitersession')
 
 api.add_resource(RecruiterAssessments, '/recruiterassessments')
 api.add_resource(RecruiterInterviewees, '/recruiterinterviewees')
-api.add_resource(PendingReviews, '/pendingreview/<int:id>')
 
 api.add_resource(IntervieweeSignUp, '/intervieweesignup')
 api.add_resource(IntervieweeLogin, '/intervieweelogin')
@@ -389,7 +469,9 @@ api.add_resource(IntervieweeLogout, '/intervieweelogout')
 api.add_resource(IntervieweeSession, '/intervieweesession')
 
 api.add_resource(IntervieweePendingAssessments, '/pendingassessments')
-api.add_resource(IntervieweeReviewedAssessments, '/reviewedassessments')
+api.add_resource(DoneAndReviewedAssessments, '/reviewedassessments')
+api.add_resource(DoneNotReviewedAssessments, '/notreviewedassessments')
+
 api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
@@ -398,10 +480,10 @@ api.add_resource(KataAnswers, '/katanswers/<int:assessment_id>/<int:interviewee_
 
 
 
-api.add_resource(SortIntervieweesByScore, '/assessment/<int:id>')
+api.add_resource(PendingIntervieweesByScore, '/pendinginterviewees/<int:id>')
+api.add_resource(ReviewedIntervieweesByScore, '/reviewedinterviewees/<int:id>')
 
-
-
+api.add_resource(CreateAssessment, '/createassessment')
 
 
 
