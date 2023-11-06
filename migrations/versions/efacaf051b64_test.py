@@ -1,8 +1,8 @@
 """Test
 
-Revision ID: ff8b4ae896b1
+Revision ID: efacaf051b64
 Revises: 
-Create Date: 2023-11-01 23:22:12.982381
+Create Date: 2023-11-04 12:08:37.690080
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'ff8b4ae896b1'
+revision = 'efacaf051b64'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,6 +24,7 @@ def upgrade():
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('phoneNumber', sa.String(), nullable=True),
     sa.Column('_password_hash', sa.String(), nullable=False),
+    sa.Column('role', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_interviewees'))
     )
     op.create_table('recruiters',
@@ -31,6 +32,7 @@ def upgrade():
     sa.Column('username', sa.String(), nullable=False),
     sa.Column('phoneNumber', sa.String(), nullable=False),
     sa.Column('email', sa.String(), nullable=False),
+    sa.Column('role', sa.String(), nullable=True),
     sa.Column('_password_hash', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_recruiters')),
     sa.UniqueConstraint('email', name=op.f('uq_recruiters_email')),
@@ -55,7 +57,8 @@ def upgrade():
     op.create_table('interviewee_assessment',
     sa.Column('interviewee_id', sa.Integer(), nullable=False),
     sa.Column('assessment_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.String(), nullable=True),
+    sa.Column('recruiter_status', sa.String(), nullable=True),
+    sa.Column('interviewee_status', sa.String(), nullable=True),
     sa.Column('score', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], name=op.f('fk_interviewee_assessment_assessment_id_assessments')),
     sa.ForeignKeyConstraint(['interviewee_id'], ['interviewees.id'], name=op.f('fk_interviewee_assessment_interviewee_id_interviewees')),
