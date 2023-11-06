@@ -8,8 +8,8 @@ fake = Faker()
 
 with app.app_context():
     
-    Interviewees.query.delete()
-    Recruiters.query.delete()
+    # Interviewees.query.delete()
+    # Recruiters.query.delete()
     Assessments.query.delete()
     Questions.query.delete()
     Answers.query.delete()
@@ -17,36 +17,36 @@ with app.app_context():
     WhiteboardSubmissions.query.delete()
     IntervieweeRecruiter.query.delete()
 
-    interviewees_list = []
-    for i in range(10):
-        interviewee = Interviewees(
-            username = fake.name(),
-            phoneNumber = fake.phone_number(),
-            email = fake.free_email(),
-            _password_hash = '1234',
-            # created_at = '2023-10-31 09:31:23'
-        )
-        interviewees_list.append(interviewee)
-    db.session.add_all(interviewees_list)
-    db.session.commit()
-    print('SEEDED INTERVIEWEES...')
+    # interviewees_list = []
+    # for i in range(10):
+    #     interviewee = Interviewees(
+    #         username = fake.name(),
+    #         phoneNumber = fake.phone_number(),
+    #         email = fake.free_email(),
+    #         _password_hash = '1234',
+    #         # created_at = '2023-10-31 09:31:23'
+    #     )
+    #     interviewees_list.append(interviewee)
+    # db.session.add_all(interviewees_list)
+    # db.session.commit()
+    # print('SEEDED INTERVIEWEES...')
 
-    recruiters_list = []
-    for i in range(3):
-        recruiter = Recruiters(
-            username = fake.name(),
-            phoneNumber = fake.phone_number(),
-            email = fake.free_email(),
-            _password_hash = '12345',
-            # created_at = '2023-10-31 09:31:23'
-        )
-        recruiters_list.append(recruiter)
-    db.session.add_all(recruiters_list)
-    db.session.commit()
-    print('SEEDED RECRUITERS...')
+    # recruiters_list = []
+    # for i in range(3):
+    #     recruiter = Recruiters(
+    #         username = fake.name(),
+    #         phoneNumber = fake.phone_number(),
+    #         email = fake.free_email(),
+    #         _password_hash = '12345',
+    #         # created_at = '2023-10-31 09:31:23'
+    #     )
+    #     recruiters_list.append(recruiter)
+    # db.session.add_all(recruiters_list)
+    # db.session.commit()
+    # print('SEEDED RECRUITERS...')
 
     assessment_list = []
-    for i in range(5):
+    for i in range(10):
         assessment = Assessments(
             title = fake.sentence(nb_words=5),
             # when = fake.date(),
@@ -61,13 +61,15 @@ with app.app_context():
 
     lists = []
     status = ['pending', 'reviewed']
-    for interviewee in Interviewees.query.all():
+    int_status = ['pending', 'completed']
+    for j in range(1, 11):
         for i in range(1, 4):
             data = IntervieweeAssessment(
-                interviewee_id = interviewee.id, 
+                interviewee_id = j, 
                 assessment_id = i,
                 recruiter_status = random.choice(status),
-                interviewee_status = random.choice(status),
+                interviewee_status = random.choice(int_status),
+                feedback = fake.sentence(),
                 score = random.randint(1, 10)
             )
             lists.append(data)
@@ -95,7 +97,7 @@ with app.app_context():
 
     questions_list = []
     type = ['mcq', 'ft', 'kata']
-    for i in range(3):
+    for i in range(6):
         question = Questions(
             question_text = fake.sentence(),
             solution = 'solution',
@@ -114,7 +116,6 @@ with app.app_context():
             interviewee_id = random.randint(1,2),
             answer_text = fake.sentence(),
             grade = random.randint(1,10),
-            feedback = fake.sentence(),
             
         )
         answers_list.append(answer)
@@ -130,7 +131,6 @@ with app.app_context():
             interviewee_id = random.randint(1,2),
             pseudocode = fake.sentence(),
             grade = random.randint(1,10),
-            feedback = fake.sentence(),
             code = fake.sentence(),
             bdd = fake.sentence()
         )

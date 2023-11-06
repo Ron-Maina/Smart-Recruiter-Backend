@@ -2,6 +2,7 @@ from flask import make_response, jsonify, request, session, render_template
 from sqlalchemy import desc
 from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
+from datetime import datetime
 
 from app import app, db, api, run_test_cases
 from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers, WhiteboardSubmissions
@@ -46,7 +47,7 @@ class RecruiterSignUp(Resource):
             db.session.add(new_recruiter)
             db.session.commit()
 
-            session['recruiter_id'] = new_recruiter.id
+            session['recruiter'] = new_recruiter.id
 
             recruiter_dict = {
                 "id": new_recruiter.id,
@@ -109,7 +110,7 @@ class IntervieweeSignUp(Resource):
             db.session.add(new_interviewee)
             db.session.commit()
 
-            session['interviewee_id'] = new_interviewee.id
+            session['interviewee'] = new_interviewee.id
 
             interviewee_dict = {
                 "id": new_interviewee.id,
@@ -168,7 +169,7 @@ class IntervieweePendingAssessments(Resource):
                     "id": assessment.id,
                     "title": assessment.title,
                     "link": assessment.link,
-                    # "time": assessment.time,
+                    "time": assessment.time,
                     "duration": assessment.duration
                 }
                 pending_list.append(pending_dict)
@@ -185,11 +186,12 @@ class DoneAndReviewedAssessments(Resource):
         reviewed_list = []
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
         if interviewee:
-            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.recruiter_status == 'reviewed',IntervieweeAssessment.interviewee_status == 'reviewed').all()
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == session.get('interviewee'), IntervieweeAssessment.recruiter_status == 'reviewed',IntervieweeAssessment.interviewee_status == 'completed').all()
             for assessment in assessments_done_by_interviewee:
                 reviewed_dict = {
-                     "id": assessment.id,
+                    "id": assessment.id,
                     "title": assessment.title,
+                    "recruiter_status": 'reviewed'
                 }
                 reviewed_list.append(reviewed_dict)
 
@@ -205,11 +207,13 @@ class DoneNotReviewedAssessments(Resource):
         reviewed_list = []
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
         if interviewee:
-            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.recruiter_status == 'pending',IntervieweeAssessment.interviewee_status == 'reviewed').all()
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == session.get('interviewee'), IntervieweeAssessment.recruiter_status == 'pending',IntervieweeAssessment.interviewee_status == 'completed').all()
             for assessment in assessments_done_by_interviewee:
                 reviewed_dict = {
-                     "id": assessment.id,
+                    "id": assessment.id,
                     "title": assessment.title,
+                    "recruiter_status": 'pending'
+
                 }
                 reviewed_list.append(reviewed_dict)
 
@@ -246,22 +250,50 @@ class AssessmentQuestions(Resource):
 
 class IntervieweeFeedback(Resource):
     def get(self, id):
-        answer_list = []
-        answers = db.session.query(Answers).join(Questions).filter(Questions.assessment_id == id, Answers.interviewee_id == session.get('interviewee')).all()
-        for answer in answers:
-            answer_dict = {
-                "id": answer.id,
-                "answer_text": answer.answer_text,
-                "grade": answer.grade,
-                "feedback": answer.feedback
-            }
-            answer_list.append(answer_dict)
+        assessment = Assessments.query.filter_by(id=id).first()
+    
+        if not assessment:
+            return jsonify({"message": "Assessment not found"}), 404
 
-        result = make_response (
-            jsonify(answer_list),
-            200
-        )
-        return result
+        questions = Questions.query.filter_by(assessment_id=id).all()
+        
+        assessment_data = {
+            "assessment_id": assessment.id,
+            "assessment_name": assessment.title,
+            "feedback": IntervieweeAssessment.query.filter_by(assessment_id=assessment.id, interviewee_id=session.get('interviewee')).first().feedback,
+            "questions": []
+        }
+
+        for question in questions:
+            question_data = {
+                "question_id": question.id,
+                "question_text": question.question_text,
+                "question_type": question.question_type,
+                "answers": [],
+                "whiteboard_submissions": []
+            }
+
+            if question.question_type in ["mcq", "ft"]:
+                answers = Answers.query.filter_by(question_id=question.id).all()
+                for answer in answers:
+                    question_data["answers"].append({
+                        "answer_id": answer.id,
+                        "answer_text": answer.answer_text,
+                        "grade": answer.grade
+                    })
+            elif question.question_type == "kata":
+                whiteboard_submissions = WhiteboardSubmissions.query.filter_by(question_id=question.id).all()
+                for submission in whiteboard_submissions:
+                    question_data["whiteboard_submissions"].append({
+                        "submission_id": submission.id,
+                        "pseudocode": submission.pseudocode,
+                        "code": submission.code,
+                        "grade": submission.grade
+                    })
+
+            assessment_data["questions"].append(question_data)
+
+        return jsonify(assessment_data)
     
 class KataFeedback(Resource):
     def get(self, id):
@@ -423,14 +455,16 @@ class KataAnswers(Resource):
     
 class CreateAssessment(Resource):
     def post(self):
-        data = request.get_json()
         try:
+            data = request.get_json()
             assessment = Assessments(
                 title = data.get('title'),
                 link = data.get('link'),
                 duration = data.get('duration'),
-                recruiter_id = data.get('recruiter_id')   
+                recruiter_id = data.get('recruiter_id'),
+                time = datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
             )
+            
             db.session.add(assessment)
             db.session.commit()
 
@@ -439,7 +473,7 @@ class CreateAssessment(Resource):
                 "title": assessment.title,
                 "link": assessment.link
             }
-
+        
             result = make_response(
                 jsonify(response_dict)
             )
@@ -452,8 +486,48 @@ class CreateAssessment(Resource):
                 jsonify({"error": str(e)}),
                 500
             )
-        
 
+# Adds set questions     
+class QuestionsResource(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+            question = Questions(
+                question_text=data['question_text'],
+                solution=data['solution'],
+                question_type=data['question_type'],
+                assessment_id=data['assessment_id']
+            )
+            print(question)
+            db.session.add(question)
+            db.session.commit()
+            response_dict = {
+                "id": question.id,
+                "question_text": question.question_text,
+                "solution": question.solution,
+                "assessment_id": question.assessment_id,
+                "question_type": question.question_type,
+            }
+            return make_response(jsonify(response_dict), 201)
+
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({"error": str(e)}), 500)
+        
+class UpdateFeedback(Resource):
+    def patch(self, assessmentId, intervieweeId):
+        new_feedback = request.json.get('feedback')
+        print(new_feedback)
+
+        interviewee_assessment = IntervieweeAssessment.query.filter(IntervieweeAssessment.interviewee_id==intervieweeId, IntervieweeAssessment.assessment_id==assessmentId).first()
+        print(interviewee_assessment)
+        if not interviewee_assessment:
+            return jsonify({"message": "Interviewee assessment not found"}), 404
+
+        interviewee_assessment.feedback = new_feedback
+        db.session.commit()
+
+        return jsonify({"message": "Feedback updated successfully"})
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
 api.add_resource(RecruiterLogin, '/recruiterlogin')
@@ -467,12 +541,13 @@ api.add_resource(IntervieweeSignUp, '/intervieweesignup')
 api.add_resource(IntervieweeLogin, '/intervieweelogin')
 api.add_resource(IntervieweeLogout, '/intervieweelogout')
 api.add_resource(IntervieweeSession, '/intervieweesession')
+api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
 
 api.add_resource(IntervieweePendingAssessments, '/pendingassessments')
 api.add_resource(DoneAndReviewedAssessments, '/reviewedassessments')
 api.add_resource(DoneNotReviewedAssessments, '/notreviewedassessments')
 
-api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
+
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
 api.add_resource(McqFreeTextAnswers, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
@@ -484,6 +559,9 @@ api.add_resource(PendingIntervieweesByScore, '/pendinginterviewees/<int:id>')
 api.add_resource(ReviewedIntervieweesByScore, '/reviewedinterviewees/<int:id>')
 
 api.add_resource(CreateAssessment, '/createassessment')
+api.add_resource(QuestionsResource, '/createquestions')
+api.add_resource(UpdateFeedback, '/update_feedback/<int:assessmentId>/<int:intervieweeId>')
+
 
 
 
