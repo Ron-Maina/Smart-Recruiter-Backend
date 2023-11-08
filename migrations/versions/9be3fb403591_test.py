@@ -1,8 +1,8 @@
 """Test
 
-Revision ID: efacaf051b64
+Revision ID: 9be3fb403591
 Revises: 
-Create Date: 2023-11-04 12:08:37.690080
+Create Date: 2023-11-08 04:03:09.242267
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'efacaf051b64'
+revision = '9be3fb403591'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,9 +23,18 @@ def upgrade():
     sa.Column('username', sa.String(), nullable=False),
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('phoneNumber', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('_password_hash', sa.String(), nullable=False),
     sa.Column('role', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_interviewees'))
+    )
+    op.create_table('invite_data',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('email', sa.String(length=120), nullable=False),
+    sa.Column('title', sa.String(length=100), nullable=False),
+    sa.Column('assessment_id', sa.Integer(), nullable=False),
+    sa.Column('recruiter_id', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_invite_data'))
     )
     op.create_table('recruiters',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -33,6 +42,7 @@ def upgrade():
     sa.Column('phoneNumber', sa.String(), nullable=False),
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('role', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('_password_hash', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_recruiters')),
     sa.UniqueConstraint('email', name=op.f('uq_recruiters_email')),
@@ -41,6 +51,7 @@ def upgrade():
     op.create_table('assessments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=100), nullable=False),
+    sa.Column('time', sa.DateTime(), nullable=True),
     sa.Column('duration', sa.Integer(), nullable=True),
     sa.Column('link', sa.String(), nullable=True),
     sa.Column('recruiter_id', sa.Integer(), nullable=False),
@@ -48,25 +59,29 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_assessments'))
     )
     op.create_table('interviewee_recruiter',
-    sa.Column('interviewee_id', sa.Integer(), nullable=False),
-    sa.Column('recruiter_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('interviewee_id', sa.Integer(), nullable=True),
+    sa.Column('recruiter_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['interviewee_id'], ['interviewees.id'], name=op.f('fk_interviewee_recruiter_interviewee_id_interviewees')),
     sa.ForeignKeyConstraint(['recruiter_id'], ['recruiters.id'], name=op.f('fk_interviewee_recruiter_recruiter_id_recruiters')),
-    sa.PrimaryKeyConstraint('interviewee_id', 'recruiter_id', name=op.f('pk_interviewee_recruiter'))
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_interviewee_recruiter'))
     )
     op.create_table('interviewee_assessment',
-    sa.Column('interviewee_id', sa.Integer(), nullable=False),
-    sa.Column('assessment_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('interviewee_id', sa.Integer(), nullable=True),
+    sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.Column('recruiter_status', sa.String(), nullable=True),
     sa.Column('interviewee_status', sa.String(), nullable=True),
+    sa.Column('feedback', sa.String(), nullable=True),
     sa.Column('score', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], name=op.f('fk_interviewee_assessment_assessment_id_assessments')),
     sa.ForeignKeyConstraint(['interviewee_id'], ['interviewees.id'], name=op.f('fk_interviewee_assessment_interviewee_id_interviewees')),
-    sa.PrimaryKeyConstraint('interviewee_id', 'assessment_id', name=op.f('pk_interviewee_assessment'))
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_interviewee_assessment'))
     )
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('question_text', sa.String(), nullable=False),
+    sa.Column('choices', sa.String(), nullable=True),
     sa.Column('solution', sa.String(), nullable=False),
     sa.Column('question_type', sa.String(), nullable=False),
     sa.Column('assessment_id', sa.Integer(), nullable=False),
@@ -77,7 +92,6 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('answer_text', sa.String(), nullable=True),
     sa.Column('grade', sa.Integer(), nullable=True),
-    sa.Column('feedback', sa.String(), nullable=True),
     sa.Column('interviewee_id', sa.Integer(), nullable=False),
     sa.Column('question_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['interviewee_id'], ['interviewees.id'], name=op.f('fk_answers_interviewee_id_interviewees')),
@@ -90,7 +104,6 @@ def upgrade():
     sa.Column('pseudocode', sa.String(length=500), nullable=False),
     sa.Column('code', sa.String(length=500), nullable=False),
     sa.Column('grade', sa.Integer(), nullable=True),
-    sa.Column('feedback', sa.String(), nullable=True),
     sa.Column('question_id', sa.Integer(), nullable=True),
     sa.Column('interviewee_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['interviewee_id'], ['interviewees.id'], name=op.f('fk_whiteboard_interviewee_id_interviewees')),
@@ -109,5 +122,6 @@ def downgrade():
     op.drop_table('interviewee_recruiter')
     op.drop_table('assessments')
     op.drop_table('recruiters')
+    op.drop_table('invite_data')
     op.drop_table('interviewees')
     # ### end Alembic commands ###
