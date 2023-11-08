@@ -17,19 +17,19 @@ with app.app_context():
     WhiteboardSubmissions.query.delete()
     IntervieweeRecruiter.query.delete()
 
-    interviewees_list = []
-    for i in range(1):
-        interviewee = Interviewees(
-            username = fake.name(),
-            phoneNumber = fake.phone_number(),
-            email = 'hahem61090@glalen.com',
-            _password_hash = '1234',
-            # created_at = '2023-10-31 09:31:23'
-        )
-        interviewees_list.append(interviewee)
-    db.session.add_all(interviewees_list)
-    db.session.commit()
-    print('SEEDED INTERVIEWEES...')
+    # interviewees_list = []
+    # for i in range(1):
+    #     interviewee = Interviewees(
+    #         username = fake.name(),
+    #         phoneNumber = fake.phone_number(),
+    #         email = 'hahem61090@glalen.com',
+    #         _password_hash = '1234',
+    #         # created_at = '2023-10-31 09:31:23'
+    #     )
+    #     interviewees_list.append(interviewee)
+    # db.session.add_all(interviewees_list)
+    # db.session.commit()
+    # print('SEEDED INTERVIEWEES...')
 
     # recruiters_list = []
     # for i in range(3):
