@@ -8,7 +8,7 @@ fake = Faker()
 
 with app.app_context():
     
-    # Interviewees.query.delete()
+    Interviewees.query.delete()
     # Recruiters.query.delete()
     Assessments.query.delete()
     Questions.query.delete()
@@ -17,19 +17,19 @@ with app.app_context():
     WhiteboardSubmissions.query.delete()
     IntervieweeRecruiter.query.delete()
 
-    # interviewees_list = []
-    # for i in range(10):
-    #     interviewee = Interviewees(
-    #         username = fake.name(),
-    #         phoneNumber = fake.phone_number(),
-    #         email = fake.free_email(),
-    #         _password_hash = '1234',
-    #         # created_at = '2023-10-31 09:31:23'
-    #     )
-    #     interviewees_list.append(interviewee)
-    # db.session.add_all(interviewees_list)
-    # db.session.commit()
-    # print('SEEDED INTERVIEWEES...')
+    interviewees_list = []
+    for i in range(1):
+        interviewee = Interviewees(
+            username = fake.name(),
+            phoneNumber = fake.phone_number(),
+            email = 'hahem61090@glalen.com',
+            _password_hash = '1234',
+            # created_at = '2023-10-31 09:31:23'
+        )
+        interviewees_list.append(interviewee)
+    db.session.add_all(interviewees_list)
+    db.session.commit()
+    print('SEEDED INTERVIEWEES...')
 
     # recruiters_list = []
     # for i in range(3):
@@ -96,7 +96,7 @@ with app.app_context():
     print("SEEDED INTREC JOIN TABLE....")
 
     questions_list = []
-    type = ['mcq', 'ft', 'kata']
+    type = ['ft', 'kata']
     for i in range(6):
         question = Questions(
             question_text = fake.sentence(),
@@ -105,12 +105,21 @@ with app.app_context():
             assessment_id = random.randint(1, 3)
         )
         questions_list.append(question)
+    for i in range(6):
+        kata = Questions(
+            question_text = fake.sentence(),
+            choices = 'solution,mine,yours,his',
+            solution = 'solution',
+            question_type = 'mcq',
+            assessment_id = random.randint(1, 3)
+        )
+        questions_list.append(kata)
     db.session.add_all(questions_list)
     db.session.commit()
     print('SEEDED QUESTIONS...')
 
     answers_list = []
-    for i in range(5):
+    for i in range(10):
         answer = Answers(
             question_id = random.randint(1,3),
             interviewee_id = random.randint(1,2),

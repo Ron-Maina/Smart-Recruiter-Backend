@@ -1,10 +1,12 @@
-from flask import Flask
+from flask import Flask, url_for, request
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 from flask_cors import CORS
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 import os
 import subprocess
 import ast
@@ -26,8 +28,15 @@ app = Flask(
 cors = CORS(app)
 
 app.secret_key = '2709776494c9ada0de540f9655bb26bf'
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smart_recruiter.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587  
+app.config['MAIL_USERNAME'] = 'projectdjango12@gmail.com'
+app.config['MAIL_PASSWORD'] = 'rawo pofb ssjn clsu'
+app.config['MAIL_USE_TLS'] = True 
+
 app.json.compact = False
 
 metadata = MetaData(naming_convention={
@@ -45,31 +54,11 @@ db.init_app(app)
 
 bcrypt = Bcrypt(app)
 
+mail = Mail(app)
+serializer = URLSafeTimedSerializer("secretkey")
+
 api = Api(app)
 
-def run_test_cases(test_cases, namespace):
-    for test_case in test_cases:
-        try:
-            exec(test_case, globals(), namespace)
-        except Exception as e:
-            print(f"Test case failed: {e}")
 
-    # Evaluate the test cases
-    test_output = run_test_cases(test_cases, shared_namespace)
 
-    # Compare the user's output with the test output
-    is_test_passed = user_code_output.strip() == test_output.strip()
-    return is_test_passed, user_code_output
 
-def run_user_code(code, namespace):
-    with contextlib.redirect_stdout(io.StringIO()) as f:
-        exec(code, globals(), namespace)
-    return f.getvalue()
-
-def run_test_cases(test_cases, namespace):
-    # Parse the JSON test cases
-    test_cases = json.loads(test_cases)
-    
-    # Iterate through test cases and execute them
-    for test_case in test_cases:
-        exec(test_case, globals(), namespace)
