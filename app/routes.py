@@ -137,8 +137,8 @@ class IntervieweeLogout(Resource):
     
 class Login(Resource):
     def post(self):
-        recruiter = Recruiters.query.filter(Recruiters.username == request.get_json()['username']).first()
-        interviewee = Interviewees.query.filter(Interviewees.username == request.get_json()['username']).first()
+        recruiter = Recruiters.query.filter(Recruiters.email == request.get_json()['email']).first()
+        interviewee = Interviewees.query.filter(Interviewees.email == request.get_json()['email']).first()
 
         password = request.get_json()['password']
         if recruiter:
@@ -444,7 +444,7 @@ class ReviewedIntervieweesByScore(Resource):
     
 # Displays the question and answers for each question 
 # for a particular interviewee for a particular assessment    
-class McqFreeTextAnswers(Resource):
+class McqFreeTextAnswersByID(Resource):
     def get(self, assessment_id, interviewee_id):
         answer_list = []
         questions = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type != 'kata').all()
@@ -468,7 +468,7 @@ class McqFreeTextAnswers(Resource):
 
 # Displays the kata question and solution for a particular interviewee
 # for a particular assessment
-class KataAnswers(Resource):
+class KataAnswersByID(Resource):
     def get(self, assessment_id, interviewee_id):
         kata_answer_list = []
         kata = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type == 'kata').first()
@@ -489,6 +489,74 @@ class KataAnswers(Resource):
             200
         )
         return result
+    
+class AddAnswers(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+            details = data['answers']
+
+            for answer in details:
+                interviewee_answers = Answers(
+                    interviewee_id = data['intervieweeId'],
+                    answer_text = answer['answer'],
+                    grade = answer['grade'],
+                    question_id = answer['questionId'],
+                )
+
+                db.session.add(interviewee_answers)
+                db.session.commit()
+
+
+            response_dict = {
+                "id": interviewee_answers.id,
+                "answer_text": interviewee_answers.answer_text,
+                "grade": interviewee_answers.grade,
+                "question_id": interviewee_answers.question_id,
+            }
+
+            result = make_response(
+                jsonify(response_dict),
+                200
+            )
+            return result
+        
+        except ValueError:
+            raise BadRequest(["validation errors"])  
+        
+class AdddWhiteboard(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+            details = data['answers']
+
+            for answer in details:
+                interviewee_answers = WhiteboardSubmissions(
+                    interviewee_id = data['intervieweeId'],
+                    code = answer['answer'],
+                    grade = answer['grade'],
+                    question_id = answer['questionId'],
+                )
+
+                db.session.add(interviewee_answers)
+                db.session.commit()
+
+
+            response_dict = {
+                "id": interviewee_answers.id,
+                "answer_text": interviewee_answers.answer_text,
+                "grade": interviewee_answers.grade,
+                "question_id": interviewee_answers.question_id,
+            }
+
+            result = make_response(
+                jsonify(response_dict),
+                200
+            )
+            return result
+        
+        except ValueError:
+            raise BadRequest(["validation errors"])  
     
 class CreateAssessment(Resource):
     def post(self):
@@ -605,7 +673,6 @@ def sendinvite():
 
         msg = Message('Accept Assessment', sender='noreply@app.com', recipients=[email])
 
-        # link = url_for('accept_invite', recipient=email, title=title, assessment_id=assessment_id, , token=token, _external=True)
 
         link = url_for('accept_invite', token=token, _external=True)
 
@@ -629,12 +696,14 @@ def accept_invite(token):
         
         invite_data = InviteData.query.filter(InviteData.email == interviewee.email).first()
 
+
         interviewee_assessment = IntervieweeAssessment(
             interviewee_id = interviewee.id,
             assessment_id = invite_data.assessment_id,
             recruiter_status = 'pending',
             interviewee_status = 'pending'
         )
+
         db.session.add(interviewee_assessment)
         db.session.commit()
 
@@ -677,8 +746,11 @@ api.add_resource(DoneNotReviewedAssessments, '/notreviewedassessments')
 
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
-api.add_resource(McqFreeTextAnswers, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
-api.add_resource(KataAnswers, '/katanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(McqFreeTextAnswersByID, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(KataAnswersByID, '/katanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(AddAnswers, '/answers')
+api.add_resource(AdddWhiteboard, '/whiteboard')
+
 
 
 
