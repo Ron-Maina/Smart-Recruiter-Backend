@@ -4,22 +4,31 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from app import db, bcrypt
 
+class InviteData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    assessment_id = db.Column(db.Integer, nullable=False)
+    recruiter_id = db.Column(db.Integer, nullable=False)
+
+
 class IntervieweeAssessment(db.Model):
     __tablename__ = 'interviewee_assessment'
 
-    interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'), primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), primary_key = True)
+    id = db.Column(db.Integer, primary_key=True)
+    interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'))
+    assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'))
     recruiter_status = db.Column(db.String) 
     interviewee_status = db.Column(db.String)
     feedback = db.Column(db.String)
-
     score = db.Column(db.String) 
 
 class IntervieweeRecruiter(db.Model):
     __tablename__ = 'interviewee_recruiter'
 
-    interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'), primary_key=True)
-    recruiter_id = db.Column(db.Integer, db.ForeignKey('recruiters.id'), primary_key = True)
+    id = db.Column(db.Integer, primary_key=True)
+    interviewee_id = db.Column(db.Integer, db.ForeignKey('interviewees.id'))
+    recruiter_id = db.Column(db.Integer, db.ForeignKey('recruiters.id'))
 
 
 class Recruiters(db.Model, SerializerMixin):
@@ -34,7 +43,7 @@ class Recruiters(db.Model, SerializerMixin):
     role = db.Column(db.String)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     _password_hash = db.Column(db.String, nullable = False)
-    role = db.Column(db.String)
+
 
 
     # many to many relationship
@@ -129,6 +138,7 @@ class Questions(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     question_text = db.Column(db.String, nullable=False)
+    choices = db.Column(db.String)
     solution = db.Column(db.String, nullable=False)
     question_type = db.Column(db.String, nullable=False) 
 
@@ -153,7 +163,6 @@ class WhiteboardSubmissions(db.Model):
     __tablename__ = "whiteboard"
 
     id = db.Column(db.Integer, primary_key=True)
-    bdd = db.Column(db.String(500), nullable=False)
     pseudocode = db.Column(db.String(500), nullable=False)
     code = db.Column(db.String(500), nullable=False)
     grade = db.Column(db.Integer)

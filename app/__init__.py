@@ -1,10 +1,12 @@
-from flask import Flask
+from flask import Flask, url_for, request
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 from flask_cors import CORS
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 import os
 import subprocess
 import ast
@@ -26,8 +28,15 @@ app = Flask(
 cors = CORS(app)
 
 app.secret_key = '2709776494c9ada0de540f9655bb26bf'
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smart_recruiter.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587  
+app.config['MAIL_USERNAME'] = 'projectdjango12@gmail.com'
+app.config['MAIL_PASSWORD'] = 'rawo pofb ssjn clsu'
+app.config['MAIL_USE_TLS'] = True 
+
 app.json.compact = False
 
 metadata = MetaData(naming_convention={
@@ -44,6 +53,9 @@ migrate = Migrate(app, db)
 db.init_app(app)
 
 bcrypt = Bcrypt(app)
+
+mail = Mail(app)
+serializer = URLSafeTimedSerializer("secretkey")
 
 api = Api(app)
 
