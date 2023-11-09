@@ -163,7 +163,6 @@ class WhiteboardSubmissions(db.Model):
     __tablename__ = "whiteboard"
 
     id = db.Column(db.Integer, primary_key=True)
-    bdd = db.Column(db.String(500), nullable=False)
     pseudocode = db.Column(db.String(500), nullable=False)
     code = db.Column(db.String(500), nullable=False)
     grade = db.Column(db.Integer)
