@@ -2,6 +2,7 @@ from flask import make_response, jsonify, request, session, render_template
 from sqlalchemy import desc
 from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
+import subprocess
 
 from datetime import datetime
 
@@ -25,9 +26,12 @@ class RecruiterSignUp(Resource):
         try:
             data = request.get_json()
 
-            existing_user = Recruiters.query.filter_by(username=data.get('username')).first()
-            if existing_user:
-                return jsonify({'message': 'User already exists'})
+            existing_user = Recruiters.query.filter_by(email=data.get('email')).first()
+            interviewee = Interviewees.query.filter_by(email = data.get('email')).first()
+            print(interviewee)
+
+            if existing_user or interviewee:
+                return jsonify({'message': 'Email already exists'}, 403)
             
             new_recruiter = Recruiters(
                 username = data.get('username'),
@@ -736,9 +740,38 @@ def accept_invite(token):
         
     return '<p>You have accepted the assessment {}. Please view it in the App</p>'.format(invite_data.title)
     
+@app.route('/runcode', methods=['POST'])
+def run_tests():
+    try:
+        data = request.get_json()
+        user_code = (data['userCode'])
+        test_code = data['testCode']
+       
 
+        # Save user code and tests to separate files
+        with open('user_code.py', 'w') as user_file:
+            user_file.write(user_code)
+
+        with open('test_code.py', 'w') as test_file:
+            test_file.write(test_code)
+
+        # Run pytest using subprocess
+        result = subprocess.run(['pytest', 'test_code.py'], capture_output=True, text=True)
+
+        # Parse pytest output to get number of passed and total tests
+        passed_tests = result.stdout.count('passed')
+        total_tests = result.stdout.count('collected')
+
+        return jsonify({'passed': passed_tests, 'total': total_tests})
+
+    except Exception as e:
+        print('Error running tests:', str(e))
+        return jsonify({'error': 'Error running tests'})
+        
 
 api.add_resource(Login, '/login')
+# api.add_resource(RunCode, '/runcode')
+
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
 api.add_resource(RecruiterLogout, '/recruiterlogout')
