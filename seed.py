@@ -141,7 +141,6 @@ with app.app_context():
             pseudocode = fake.sentence(),
             grade = random.randint(1,10),
             code = fake.sentence(),
-            bdd = fake.sentence()
         )
         whiteboard_list.append(submission)
     db.session.add_all(whiteboard_list)
