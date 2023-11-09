@@ -60,5 +60,3 @@ serializer = URLSafeTimedSerializer("secretkey")
 api = Api(app)
 
 
-
-
