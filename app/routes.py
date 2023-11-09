@@ -2,10 +2,11 @@ from flask import make_response, jsonify, request, session, render_template
 from sqlalchemy import desc
 from flask_restful import Resource
 from werkzeug.exceptions import BadRequest
+
 from datetime import datetime
 
-from app import app, db, api, run_test_cases
-from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers, WhiteboardSubmissions
+from app import app, db, api, mail, serializer, SignatureExpired, BadTimeSignature, Message, url_for, request
+from app.models import  Interviewees, Recruiters, Assessments, IntervieweeAssessment, Questions, Answers, WhiteboardSubmissions, IntervieweeRecruiter, InviteData
 
 app.config['SESSION_TYPE'] = 'filesystem'
 
@@ -17,25 +18,17 @@ load_dotenv()
 def index(id=0):
     return render_template("index.html")
    
-@app.route('/run-test', methods=['POST'])
-def execute_test():
-    data = request.get_json()
-    code = data['code']
-    test_cases = data['test_cases']
 
-    is_test_passed, user_code_output = run_test_cases(code, test_cases)
-
-    response = {
-        'is_test_passed': is_test_passed,
-        'user_code_output': user_code_output,
-    }
-
-    return jsonify(response)
     
 class RecruiterSignUp(Resource):
     def post(self):
         try:
             data = request.get_json()
+
+            existing_user = Recruiters.query.filter_by(username=data.get('username')).first()
+            if existing_user:
+                return jsonify({'message': 'User already exists'})
+            
             new_recruiter = Recruiters(
                 username = data.get('username'),
                 email = data.get('email'),
@@ -64,28 +57,18 @@ class RecruiterSignUp(Resource):
         except ValueError:
             raise BadRequest(["validation errors"])  
         
-
-class RecruiterLogin(Resource):
-    def post(self):
-        recruiter = Recruiters.query.filter(Recruiters.username == request.get_json()['username']).first()
-        password = request.get_json()['password']
-
-        if (recruiter) and (recruiter.authenticate(password) == True):
-            session['recruiter'] = recruiter.id
-
-            response = make_response(
-                jsonify(recruiter.to_dict()),
-                200
-            )
-            return response
-        else:
-            return {"message":"You do not have an account"}, 401
         
 class RecruiterSession(Resource):
     def get(self):
         recruiter = Recruiters.query.filter(Recruiters.id == session.get('recruiter')).first()
         if recruiter:
-            return jsonify(recruiter.to_dict())
+            recruiter_dict = {
+                "id": recruiter.id,
+                "username": recruiter.username,
+                "email": recruiter.email,
+                "role": recruiter.role
+            }
+            return jsonify(recruiter_dict)
         else:
            return {}, 401 
         
@@ -99,6 +82,11 @@ class IntervieweeSignUp(Resource):
     def post(self):
         try:
             data = request.get_json()
+
+            existing_user = Interviewees.query.filter_by(username=data.get('username')).first()
+            if existing_user:
+                return jsonify({'message': 'Email already registered'})
+            
             new_interviewee = Interviewees(
                 username = data.get('username'),
                 email = data.get('email'),
@@ -127,27 +115,17 @@ class IntervieweeSignUp(Resource):
         except ValueError:
             raise BadRequest(["validation errors"])   
         
-class IntervieweeLogin(Resource):
-    def post(self):
-        interviewee = Interviewees.query.filter(Interviewees.username == request.get_json()['username']).first()
-        password = request.get_json()['password']
-
-        if (interviewee) and (interviewee.authenticate(password) == True):
-            session['interviewee'] = interviewee.id
-
-            response = make_response(
-                jsonify(interviewee.to_dict()),
-                200
-            )
-            return response
-        else:
-            return {"message":"You do not have an account"}, 401
-        
 class IntervieweeSession(Resource):
     def get(self):
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first()
         if interviewee:
-            return jsonify(interviewee.to_dict())
+            interviewee_dict = {
+                "id": interviewee.id,
+                "username": interviewee.username,
+                "email": interviewee.email,
+                "role": interviewee.role
+            }
+            return jsonify(interviewee_dict)
         else:
            return {}, 401 
         
@@ -155,6 +133,52 @@ class IntervieweeLogout(Resource):
     def delete(self):
         session['interviewee'] = None
         return {}, 204
+    
+    
+class Login(Resource):
+    def post(self):
+        recruiter = Recruiters.query.filter(Recruiters.email == request.get_json()['email']).first()
+        interviewee = Interviewees.query.filter(Interviewees.email == request.get_json()['email']).first()
+
+        password = request.get_json()['password']
+        if recruiter:
+            if (recruiter) and (recruiter.authenticate(password) == True):
+                session['recruiter'] = recruiter.id
+
+                recruiter_dict = {
+                    "id": recruiter.id,
+                    "username": recruiter.username,
+                    "email": recruiter.email,
+                    "role": recruiter.role
+                }
+
+
+                response = make_response(
+                    jsonify(recruiter_dict),
+                    200
+                )
+                return response
+            else:
+                return {"message":"You do not have an account"}, 401
+            
+        elif interviewee:
+            if (interviewee) and (interviewee.authenticate(password) == True):
+                session['interviewee'] = interviewee.id
+
+                interviewee_dict = {
+                    "id": interviewee.id,
+                    "username": interviewee.username,
+                    "email": interviewee.email,
+                    "role": interviewee.role
+                }
+
+                response = make_response(
+                    jsonify(interviewee_dict),
+                    200
+                )
+                return response
+            else:
+                return {"message":"You do not have an account"}, 401
 
 # interviewee side 
 # Assessment Not Done   
@@ -163,7 +187,8 @@ class IntervieweePendingAssessments(Resource):
         pending_list = []
         interviewee = Interviewees.query.filter(Interviewees.id == session.get('interviewee')).first() 
         if interviewee:
-            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, IntervieweeAssessment.interviewee_status == 'pending').all()
+            assessments_done_by_interviewee = db.session.query(Assessments).join(IntervieweeAssessment).filter(IntervieweeAssessment.interviewee_id == interviewee.id, 
+                                                                                                               IntervieweeAssessment.interviewee_status == 'pending').order_by(desc(IntervieweeAssessment.id)).all()
             for assessment in assessments_done_by_interviewee:
                 pending_dict = {
                     "id": assessment.id,
@@ -228,15 +253,27 @@ class AssessmentQuestions(Resource):
         question_list = []
         questions = Questions.query.filter(Questions.assessment_id == id).all()
         for question in questions:
-            if question.question_type == 'mcq' or question.question_type == 'kata':
-                question_dict = {
+            if question.question_type == 'mcq':
+                mcq_dict = {
+                    "id": question.id,
                     "question": question.question_text,
-                    "choices": question.solution,
+                    "choices": question.choices,
+                    "solution": question.solution,
                     "type": question.question_type
                 }
-                question_list.append(question_dict)
+                question_list.append(mcq_dict)
+
+            elif question.question_type == 'kata':
+                kata_dict = {
+                    "id": question.id,
+                    "question": question.question_text,
+                    "solution": question.solution,
+                    "type": question.question_type
+                }
+                question_list.append(kata_dict)
             else:
                 ft_dict = {
+                    "id": question.id,
                     "question": question.question_text,
                     "type": question.question_type
                 }
@@ -317,7 +354,7 @@ class KataFeedback(Resource):
 class RecruiterAssessments(Resource):
     def get(self):
         assessments_list = []
-        assessments = Assessments.query.filter(Assessments.recruiter_id == session.get('recruiter')).all()
+        assessments = Assessments.query.filter(Assessments.recruiter_id == session.get('recruiter')).order_by(desc(Assessments.id)).all()
         for assessment in assessments:
             assessment_dict = {
                 "id": assessment.id,
@@ -358,7 +395,7 @@ class PendingIntervieweesByScore(Resource):
         interviewee_score = []
         interviewees_with_scores = db.session.query(Interviewees, IntervieweeAssessment.score).\
         join(IntervieweeAssessment).\
-        filter(IntervieweeAssessment.assessment_id == id, IntervieweeAssessment.recruiter_status == "pending").\
+        filter(IntervieweeAssessment.assessment_id == id, IntervieweeAssessment.recruiter_status == "pending", IntervieweeAssessment.interviewee_status == "completed").\
         order_by(desc(IntervieweeAssessment.score)).all()
 
         for interviewee, score in interviewees_with_scores:
@@ -407,7 +444,7 @@ class ReviewedIntervieweesByScore(Resource):
     
 # Displays the question and answers for each question 
 # for a particular interviewee for a particular assessment    
-class McqFreeTextAnswers(Resource):
+class McqFreeTextAnswersByID(Resource):
     def get(self, assessment_id, interviewee_id):
         answer_list = []
         questions = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type != 'kata').all()
@@ -431,7 +468,7 @@ class McqFreeTextAnswers(Resource):
 
 # Displays the kata question and solution for a particular interviewee
 # for a particular assessment
-class KataAnswers(Resource):
+class KataAnswersByID(Resource):
     def get(self, assessment_id, interviewee_id):
         kata_answer_list = []
         kata = Questions.query.filter(Questions.assessment_id == assessment_id, Questions.question_type == 'kata').first()
@@ -441,7 +478,6 @@ class KataAnswers(Resource):
                 response_dict = {
                     "question": kata.question_text,
                     "pseudocode": answer.pseudocode,
-                    "bdd": answer.bdd,
                     "code": answer.code,
                     "grade": answer.grade
                 }
@@ -452,6 +488,74 @@ class KataAnswers(Resource):
             200
         )
         return result
+    
+class AddAnswers(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+            details = data['answers']
+
+            for answer in details:
+                interviewee_answers = Answers(
+                    interviewee_id = data['intervieweeId'],
+                    answer_text = answer['answer'],
+                    grade = answer['grade'],
+                    question_id = answer['questionId'],
+                )
+
+                db.session.add(interviewee_answers)
+                db.session.commit()
+
+
+            response_dict = {
+                "id": interviewee_answers.id,
+                "answer_text": interviewee_answers.answer_text,
+                "grade": interviewee_answers.grade,
+                "question_id": interviewee_answers.question_id,
+            }
+
+            result = make_response(
+                jsonify(response_dict),
+                200
+            )
+            return result
+        
+        except ValueError:
+            raise BadRequest(["validation errors"])  
+        
+class AdddWhiteboard(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+
+            kata_answers = WhiteboardSubmissions(
+                interviewee_id = data.get('interviewee_id'),
+                pseudocode = data.get('pseudocode'),
+                code = data.get('code'),
+                grade = data.get('grade'),
+                question_id = data.get('question_id'),
+            )
+
+            db.session.add(kata_answers)
+            db.session.commit()
+
+
+            response_dict = {
+                "id": kata_answers.id,
+                "code": kata_answers.code,
+                "pseudocode": kata_answers.pseudocode,
+                "grade": kata_answers.grade,
+                "question_id": kata_answers.question_id,
+            }
+
+            result = make_response(
+                jsonify(response_dict),
+                200
+            )
+            return result
+        
+        except ValueError:
+            raise BadRequest(["validation errors"])  
     
 class CreateAssessment(Resource):
     def post(self):
@@ -492,15 +596,31 @@ class QuestionsResource(Resource):
     def post(self):
         try:
             data = request.get_json()
+            print(data)
+            
+            # Check for empty fields
+            required_fields = ['question_text', 'solution', 'question_type', 'assessment_id']
+            for field in required_fields:
+                if not data.get(field):
+                    return make_response(jsonify({"error": f"{field} is required"}), 400)
+            
+            # Create the Questions instance
             question = Questions(
                 question_text=data['question_text'],
                 solution=data['solution'],
                 question_type=data['question_type'],
                 assessment_id=data['assessment_id']
             )
-            print(question)
+            
+            # If the question type is "mcq," include the "choices" attribute
+            if data['question_type'] == 'mcq':
+                choices = data.get('choices')
+                if choices:
+                    question.choices = choices
+            
             db.session.add(question)
             db.session.commit()
+            
             response_dict = {
                 "id": question.id,
                 "question_text": question.question_text,
@@ -508,29 +628,119 @@ class QuestionsResource(Resource):
                 "assessment_id": question.assessment_id,
                 "question_type": question.question_type,
             }
+            
+            # Include "choices" attribute in the response if the question type is "mcq"
+            if data['question_type'] == 'mcq':
+                response_dict['choices'] = question.choices
+            
             return make_response(jsonify(response_dict), 201)
-
+        
         except Exception as e:
             db.session.rollback()
             return make_response(jsonify({"error": str(e)}), 500)
+
         
-class UpdateFeedback(Resource):
+class UpdateInterviewAssessment(Resource):
     def patch(self, assessmentId, intervieweeId):
+
         new_feedback = request.json.get('feedback')
-        print(new_feedback)
+        score = request.json.get('score')
 
         interviewee_assessment = IntervieweeAssessment.query.filter(IntervieweeAssessment.interviewee_id==intervieweeId, IntervieweeAssessment.assessment_id==assessmentId).first()
-        print(interviewee_assessment)
-        if not interviewee_assessment:
-            return jsonify({"message": "Interviewee assessment not found"}), 404
 
-        interviewee_assessment.feedback = new_feedback
+        if interviewee_assessment and new_feedback:
+            interviewee_assessment.feedback = new_feedback
+            interviewee_assessment.recruiter_status = "reviewed"
+            db.session.commit()
+            return jsonify({"message": "Feedback updated successfully"}, 200)
+
+        elif interviewee_assessment and score:
+            interviewee_assessment.score = score
+            interviewee_assessment.interviewee_status = 'completed'
+            db.session.commit()
+            return jsonify({"message": "Score updated successfully"}, 200)
+
+        else:
+            return jsonify({"message": "No entry found"}, 404)
+
+      
+
+    
+
+@app.route('/sendinvite', methods=['POST'])   
+def sendinvite():
+    data = request.json
+
+    emails = data.get('recipient_emails')
+    title = data.get('title')
+    assessment_id = data.get('assessment_id')
+
+    for email in emails:
+        token = serializer.dumps(email, salt="email-confirm")
+
+    
+        invite_data = InviteData(email=email, title=title, assessment_id=assessment_id, recruiter_id=session.get('recruiter'))
+        db.session.add(invite_data)
         db.session.commit()
 
-        return jsonify({"message": "Feedback updated successfully"})
+
+        msg = Message('Accept Assessment', sender='noreply@app.com', recipients=[email])
+
+
+        link = url_for('accept_invite', token=token, _external=True)
+
+
+        msg.body = "Your link is {}. Please note the link expires after 24 hours". format(link)
+
+    mail.send(msg)
+
+    return jsonify({"Message": "Successful"})
+    
+
+@app.route('/accept_invite/<token>')
+def accept_invite(token):
+    try:
+        email = serializer.loads(token, salt="email-confirm", max_age=86400)
+
+        interviewee = Interviewees.query.filter(Interviewees.email == email).first()
+
+        if not interviewee:
+            return '<p>You do not have a Smart Recruiter account. <a href="http://localhost:3000/signup">Click here</a> to create an account and get access to the assessment</p>'
+        
+        invite_data = InviteData.query.filter(InviteData.email == interviewee.email).first()
+
+
+        interviewee_assessment = IntervieweeAssessment(
+            interviewee_id = interviewee.id,
+            assessment_id = invite_data.assessment_id,
+            recruiter_status = 'pending',
+            interviewee_status = 'pending'
+        )
+
+        db.session.add(interviewee_assessment)
+        db.session.commit()
+
+        interviewee_recruiter = IntervieweeRecruiter(
+            interviewee_id = interviewee.id,
+            recruiter_id = invite_data.recruiter_id
+        )
+
+        db.session.add(interviewee_recruiter)
+        db.session.commit()
+
+
+    except SignatureExpired:
+        return '<h1>Expired Invite</h1>'
+    except BadTimeSignature:
+        return '<h1>Please Enter Correct Invite Token</h1>'
+        
+    return '<p>You have accepted the assessment {}. Please view it in the App</p>'.format(invite_data.title)
+    
+
+
+api.add_resource(Login, '/login')
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
-api.add_resource(RecruiterLogin, '/recruiterlogin')
 api.add_resource(RecruiterLogout, '/recruiterlogout')
 api.add_resource(RecruiterSession, '/recruitersession')
 
@@ -538,7 +748,6 @@ api.add_resource(RecruiterAssessments, '/recruiterassessments')
 api.add_resource(RecruiterInterviewees, '/recruiterinterviewees')
 
 api.add_resource(IntervieweeSignUp, '/intervieweesignup')
-api.add_resource(IntervieweeLogin, '/intervieweelogin')
 api.add_resource(IntervieweeLogout, '/intervieweelogout')
 api.add_resource(IntervieweeSession, '/intervieweesession')
 api.add_resource(IntervieweeFeedback, '/intfeedback/<int:id>')
@@ -550,8 +759,11 @@ api.add_resource(DoneNotReviewedAssessments, '/notreviewedassessments')
 
 api.add_resource(AssessmentQuestions, '/questions/<int:id>')
 api.add_resource(KataFeedback, '/whiteboard/<int:id>')
-api.add_resource(McqFreeTextAnswers, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
-api.add_resource(KataAnswers, '/katanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(McqFreeTextAnswersByID, '/ftmcqanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(KataAnswersByID, '/katanswers/<int:assessment_id>/<int:interviewee_id>')
+api.add_resource(AddAnswers, '/answers')
+api.add_resource(AdddWhiteboard, '/whiteboard')
+
 
 
 
@@ -560,7 +772,10 @@ api.add_resource(ReviewedIntervieweesByScore, '/reviewedinterviewees/<int:id>')
 
 api.add_resource(CreateAssessment, '/createassessment')
 api.add_resource(QuestionsResource, '/createquestions')
-api.add_resource(UpdateFeedback, '/update_feedback/<int:assessmentId>/<int:intervieweeId>')
+api.add_resource(UpdateInterviewAssessment, '/update_interviewee_assessment/<int:assessmentId>/<int:intervieweeId>')
+
+
+
 
 
 

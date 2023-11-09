@@ -47,29 +47,4 @@ bcrypt = Bcrypt(app)
 
 api = Api(app)
 
-def run_test_cases(test_cases, namespace):
-    for test_case in test_cases:
-        try:
-            exec(test_case, globals(), namespace)
-        except Exception as e:
-            print(f"Test case failed: {e}")
 
-    # Evaluate the test cases
-    test_output = run_test_cases(test_cases, shared_namespace)
-
-    # Compare the user's output with the test output
-    is_test_passed = user_code_output.strip() == test_output.strip()
-    return is_test_passed, user_code_output
-
-def run_user_code(code, namespace):
-    with contextlib.redirect_stdout(io.StringIO()) as f:
-        exec(code, globals(), namespace)
-    return f.getvalue()
-
-def run_test_cases(test_cases, namespace):
-    # Parse the JSON test cases
-    test_cases = json.loads(test_cases)
-    
-    # Iterate through test cases and execute them
-    for test_case in test_cases:
-        exec(test_case, globals(), namespace)
