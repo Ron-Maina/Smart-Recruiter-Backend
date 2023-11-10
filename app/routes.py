@@ -78,7 +78,10 @@ class RecruiterSession(Resource):
         
 class RecruiterLogout(Resource):
     def delete(self):
+        print(session['recruiter'])
         session['recruiter'] = None
+        print(session['recruiter'])
+
         return {}, 204
 
 
@@ -148,7 +151,7 @@ class Login(Resource):
         if recruiter:
             if (recruiter) and (recruiter.authenticate(password) == True):
                 session['recruiter'] = recruiter.id
-
+                print(session['recruiter'])
                 recruiter_dict = {
                     "id": recruiter.id,
                     "username": recruiter.username,
@@ -168,7 +171,7 @@ class Login(Resource):
         elif interviewee:
             if (interviewee) and (interviewee.authenticate(password) == True):
                 session['interviewee'] = interviewee.id
-
+                print(session['interviewee'])
                 interviewee_dict = {
                     "id": interviewee.id,
                     "username": interviewee.username,
@@ -576,6 +579,8 @@ class CreateAssessment(Resource):
             db.session.add(assessment)
             db.session.commit()
 
+            session['newAssessment'] = assessment.id
+
             response_dict = {
                 "id": assessment.id,
                 "title": assessment.title,
@@ -669,12 +674,9 @@ class UpdateInterviewAssessment(Resource):
 
       
 
-    
-
 @app.route('/sendinvite', methods=['POST'])   
 def sendinvite():
     data = request.json
-
     emails = data.get('recipient_emails')
     title = data.get('title')
     assessment_id = data.get('assessment_id')
@@ -696,7 +698,7 @@ def sendinvite():
 
         msg.body = "Your link is {}. Please note the link expires after 24 hours". format(link)
 
-    mail.send(msg)
+        mail.send(msg)
 
     return jsonify({"Message": "Successful"})
     
@@ -770,8 +772,6 @@ def run_tests():
         
 
 api.add_resource(Login, '/login')
-# api.add_resource(RunCode, '/runcode')
-
 
 api.add_resource(RecruiterSignUp, '/recruitersignup')
 api.add_resource(RecruiterLogout, '/recruiterlogout')
