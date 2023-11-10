@@ -25,7 +25,7 @@ app = Flask(
     template_folder='../client/build'
 )
 
-cors = CORS(app)
+CORS(app)
 
 app.secret_key = '2709776494c9ada0de540f9655bb26bf'
 
