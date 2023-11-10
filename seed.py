@@ -1,4 +1,4 @@
-from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers, WhiteboardSubmissions, IntervieweeRecruiter
+from app.models import Interviewees, Assessments, IntervieweeAssessment, Recruiters, Questions, Answers, WhiteboardSubmissions, IntervieweeRecruiter, InviteData
 from faker import Faker
 from app import app, db
 import random
@@ -10,6 +10,7 @@ with app.app_context():
     
     Interviewees.query.delete()
     # Recruiters.query.delete()
+    InviteData.query.delete()
     Assessments.query.delete()
     Questions.query.delete()
     Answers.query.delete()
