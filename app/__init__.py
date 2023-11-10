@@ -20,7 +20,7 @@ load_dotenv()
 
 app = Flask( __name__)
 
-CORS(app)
+cors = CORS(app)
 
 app.secret_key = '2709776494c9ada0de540f9655bb26bf'
 
