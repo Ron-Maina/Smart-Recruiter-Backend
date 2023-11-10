@@ -29,7 +29,7 @@ cors = CORS(app)
 
 app.secret_key = '2709776494c9ada0de540f9655bb26bf'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smart_recruiter.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
 app.config['MAIL_PORT'] = 587  
