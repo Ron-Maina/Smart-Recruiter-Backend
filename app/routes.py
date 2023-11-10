@@ -305,6 +305,7 @@ class IntervieweeFeedback(Resource):
             "assessment_id": assessment.id,
             "assessment_name": assessment.title,
             "feedback": IntervieweeAssessment.query.filter_by(assessment_id=assessment.id, interviewee_id=session.get('interviewee')).first().feedback,
+            "total_score": IntervieweeAssessment.query.filter_by(assessment_id=assessment.id, interviewee_id=session.get('interviewee')).first().score,
             "questions": []
         }
 
@@ -332,7 +333,6 @@ class IntervieweeFeedback(Resource):
                         "submission_id": submission.id,
                         "pseudocode": submission.pseudocode,
                         "code": submission.code,
-                        "grade": submission.grade
                     })
 
             assessment_data["questions"].append(question_data)
@@ -461,6 +461,7 @@ class McqFreeTextAnswersByID(Resource):
             for answer in (question.answers):
                 if answer.interviewee_id == interviewee_id and question.id == answer.question_id:
                     response_dict = {
+                        "question_id": question.id,
                         "question": question.question_text,
                         "answer": answer.answer_text,
                         "grade": answer.grade
@@ -654,17 +655,19 @@ class UpdateInterviewAssessment(Resource):
 
         new_feedback = request.json.get('feedback')
         score = request.json.get('score')
+        status = request.json.get('status')
 
         interviewee_assessment = IntervieweeAssessment.query.filter(IntervieweeAssessment.interviewee_id==intervieweeId, IntervieweeAssessment.assessment_id==assessmentId).first()
 
         if interviewee_assessment and new_feedback:
             interviewee_assessment.feedback = new_feedback
             interviewee_assessment.recruiter_status = "reviewed"
+            interviewee_assessment.score = score
+
             db.session.commit()
             return jsonify({"message": "Feedback updated successfully"}, 200)
 
-        elif interviewee_assessment and score:
-            interviewee_assessment.score = score
+        elif interviewee_assessment and status:
             interviewee_assessment.interviewee_status = 'completed'
             db.session.commit()
             return jsonify({"message": "Score updated successfully"}, 200)
